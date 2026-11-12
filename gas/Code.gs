@@ -10,6 +10,23 @@ function doGet() {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
 }
 
+
+function doPost(e) {
+  try {
+    const payload = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (payload.action === 'getDashboard') return jsonResponse_(getDashboard());
+    if (payload.action === 'saveTransaction') return jsonResponse_(saveTransaction(payload.data || {}));
+    return jsonResponse_({ok:false,error:'Perintah tidak dikenal.'});
+  } catch (err) {
+    return jsonResponse_({ok:false,error:String(err && err.message || err)});
+  }
+}
+
+function jsonResponse_(value) {
+  return ContentService.createTextOutput(JSON.stringify(value))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function setup() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   let tx = ss.getSheetByName(TRANSAKSI_SHEET);
