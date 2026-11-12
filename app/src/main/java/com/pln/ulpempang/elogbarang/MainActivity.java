@@ -136,10 +136,12 @@ public class MainActivity extends Activity {
             InputStream stream = status >= 400 ? conn.getErrorStream() : conn.getInputStream();
             String response = readAll(stream);
             String contentType = conn.getContentType();
+            String finalUrl = current.toString();
             conn.disconnect();
             String trimmed = response.trim();
             if (trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html") || (contentType != null && contentType.toLowerCase().contains("text/html"))) {
-                throw new Exception("Google mengirim halaman HTML, bukan JSON. Periksa Deploy Apps Script: gunakan deployment Web App terbaru, Execute as: Me, Who has access: Anyone. Pastikan URL /exec pada APK sama dengan URL deployment terbaru.");
+                String preview = trimmed.replaceAll("\\s+", " ");
+                throw new Exception("Respons Google bukan JSON. HTTP " + status + ", tipe=" + contentType + ", alamat=" + finalUrl + ", isi=" + preview.substring(0, Math.min(220, preview.length())));
             }
             try {
                 JSONObject parsed = new JSONObject(trimmed);
