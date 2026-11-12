@@ -106,34 +106,50 @@ public class MainActivity extends Activity {
     }
 
     private JSONObject post(JSONObject body) throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) new URL(API_URL).openConnection();
-        conn.setRequestMethod("POST");
-        conn.setConnectTimeout(30000);
-        conn.setReadTimeout(60000);
-        conn.setDoOutput(true);
-        conn.setInstanceFollowRedirects(false);
-        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-        byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
-        conn.setFixedLengthStreamingMode(bytes.length);
-        try (OutputStream os = conn.getOutputStream()) { os.write(bytes); }
-        int status = conn.getResponseCode();
-        if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
-            String location = conn.getHeaderField("Location");
+        URL current = new URL(API_URL);
+        String method = "POST";
+        byte[] requestBytes = body.toString().getBytes(StandardCharsets.UTF_8);
+        for (int hop = 0; hop < 6; hop++) {
+            HttpURLConnection conn = (HttpURLConnection) current.openConnection();
+            conn.setConnectTimeout(30000);
+            conn.setReadTimeout(60000);
+            conn.setInstanceFollowRedirects(false);
+            conn.setRequestProperty("Accept", "application/json, text/plain, */*");
+            conn.setRequestProperty("User-Agent", "ELogBarangAndroid/2.1");
+            conn.setRequestProperty("Cache-Control", "no-cache");
+            conn.setRequestMethod(method);
+            if ("POST".equals(method)) {
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                conn.setFixedLengthStreamingMode(requestBytes.length);
+                try (OutputStream os = conn.getOutputStream()) { os.write(requestBytes); }
+            }
+            int status = conn.getResponseCode();
+            if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
+                String location = conn.getHeaderField("Location");
+                conn.disconnect();
+                if (location == null) throw new Exception("Google mengalihkan permintaan tanpa alamat tujuan.");
+                current = new URL(current, location);
+                if (status == 303 || ((status == 301 || status == 302) && "POST".equals(method))) method = "GET";
+                continue;
+            }
+            InputStream stream = status >= 400 ? conn.getErrorStream() : conn.getInputStream();
+            String response = readAll(stream);
+            String contentType = conn.getContentType();
             conn.disconnect();
-            if (location == null) throw new Exception("Server Google tidak mengirim alamat respons.");
-            HttpURLConnection redirected = (HttpURLConnection) new URL(location).openConnection();
-            redirected.setConnectTimeout(30000);
-            redirected.setReadTimeout(60000);
-            status = redirected.getResponseCode();
-            InputStream is = status >= 400 ? redirected.getErrorStream() : redirected.getInputStream();
-            String response = readAll(is);
-            redirected.disconnect();
-            return new JSONObject(response);
+            String trimmed = response.trim();
+            if (trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html") || (contentType != null && contentType.toLowerCase().contains("text/html"))) {
+                throw new Exception("Google mengirim halaman HTML, bukan JSON. Periksa Deploy Apps Script: gunakan deployment Web App terbaru, Execute as: Me, Who has access: Anyone. Pastikan URL /exec pada APK sama dengan URL deployment terbaru.");
+            }
+            try {
+                JSONObject parsed = new JSONObject(trimmed);
+                if (status >= 400) throw new Exception("Server Google (" + status + "): " + parsed.optString("error", trimmed));
+                return parsed;
+            } catch (org.json.JSONException ex) {
+                throw new Exception("Respons server tidak valid (HTTP " + status + "): " + trimmed.substring(0, Math.min(180, trimmed.length())));
+            }
         }
-        InputStream is = status >= 400 ? conn.getErrorStream() : conn.getInputStream();
-        String response = readAll(is);
-        conn.disconnect();
-        return new JSONObject(response);
+        throw new Exception("Terlalu banyak pengalihan dari server Google.");
     }
 
     private String readAll(InputStream is) throws Exception {
