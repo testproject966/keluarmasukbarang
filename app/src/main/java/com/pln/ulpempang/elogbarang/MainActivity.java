@@ -11,6 +11,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+import android.view.View;
 
 import androidx.core.content.FileProvider;
 import java.io.File;
@@ -32,6 +33,9 @@ public class MainActivity extends Activity {
     private void openApp() {
         webView = new WebView(this);
         webView.setBackgroundColor(0xfff1f5f4);
+        webView.setHorizontalScrollBarEnabled(false);
+        webView.setVerticalScrollBarEnabled(false);
+        webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -40,8 +44,8 @@ public class MainActivity extends Activity {
         settings.setSupportZoom(false);
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
-        settings.setUseWideViewPort(true);
-        settings.setLoadWithOverviewMode(true);
+        settings.setUseWideViewPort(false);
+        settings.setLoadWithOverviewMode(false);
         settings.setTextZoom(100);
         webView.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, String next) {
@@ -59,7 +63,7 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(webView);
-        webView.loadUrl("https://script.google.com/macros/s/AKfycbyTLwH-5sYJ8s6iIQfiyRkim9bhGy4nA2wfF1Bci0J7c7e-4-dwr7vGPqJzjAh1pCtz/exec");
+        webView.loadUrl("https://script.google.com/macros/s/AKfycbyTLwH-5sYJ8s6iIQfiyRkim9bhGy4nA2wfF1Bci0J7c7e-4-dwr7vGPqJzjAh1pCtz/exec?embedded=true");
     }
 
     private void openCameraOnly() {
